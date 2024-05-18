@@ -230,25 +230,60 @@ def image_download(user_id, chara_number, cv_name):
 
 
 import pandas as pd
-from openpyxl import load_workbook
+from openpyxl import load_workbook, drawing
 from openpyxl.drawing.image import Image
+from datetime import datetime
+def parse_date(date_str):
+    """
+    将日期字符串解析为datetime对象，未知或者无法识别的日期返回None。
+    """
+    if date_str in ['未知日期']:
+        return None
+    for fmt in ('%Y-%m-%d', '%Y/%m', '%Y-%m-%d（%A）', '%Y年%m月%d日'):
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+    return None
 
-def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link,cv_name):
+def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link,cv_name, game_only):
 
 
-    time = {str(k): v for k, v in time.items()}
-    time_list = [time[str(i)] for i in range(len(name))]
 
+
+
+    # 在添加到DataFrame之前移除不需要的词条
+    keys_to_remove = []
+    if game_only :
+        keys_to_remove = ['OVA', 'TV', 'WEB', '剧场版']
+    filtered_indices = [i for i, value in enumerate(kaifa) if value not in keys_to_remove]
+    
+    parsed_times = {k: parse_date(v) for k, v in time.items()}
+
+    # 根据时间进行排序，未知日期排在最后
+    sorted_indices = sorted(filtered_indices, key=lambda idx: (parsed_times[str(idx)] is not None, parsed_times[str(idx)]), reverse=True)
+
+    # 然后根据排序后的索引更新各个列表
+    name = [name[i] for i in sorted_indices]
+    subject_name = [subject_name[i] for i in sorted_indices]
+    kaifa = [kaifa[i] for i in sorted_indices]
+    staff = [staff[i] for i in sorted_indices]
+    time_list = [time[str(i)] for i in sorted_indices]  # 使用原始的时间字符串列表
+    image = [image[i] for i in sorted_indices]
+    link = [link[i] for i in sorted_indices]
+    
     df = pd.DataFrame()
-    df["肖像"] = []
+    df["肖像"] = ["" for _ in range(len(name))]
     df["角色名"] = name
     df["作品名"] = subject_name
     df["开发"] = kaifa
     df["主配角"] = staff
     df["登场时间"] = time_list
-
+    # import pdb;pdb.set_trace()
     # 构建Excel文件保存的新路径
     excel_file_path = os.path.join(str(cv_name), f"{cv_name}.xlsx")
+    if game_only:
+        excel_file_path = os.path.join(str(cv_name), f"{cv_name}_game.xlsx")
     df.to_excel(excel_file_path, index=False)
 
 
@@ -271,15 +306,18 @@ def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link,cv
     excel_row_height = 100  # Excel行高的单位
     # 转换Excel行高为像素值，大约是行高*像素/单位（该换算系数可能需要根据实际情况调整）
     fixed_row_height_px = excel_row_height
-    for n in range(len(name)):
-        N = n + 2  # Excel中行号从1开始，标题行为第一行，因此数据行从2开始
+    user_dir = os.path.join(str(cv_name))
+    images_dir = os.path.join(user_dir, f"{user_id}_images")
 
+    for i, idx in enumerate(filtered_indices):
+        N = i + 2  # Excel起始行调整
         ws.row_dimensions[N].height = excel_row_height
-        user_dir = os.path.join(str(cv_name))
-        images_dir = os.path.join(user_dir, f"{user_id}_images")
-        if image[n]:
-            # 打开图片
-            with PILImage.open(os.path.join(images_dir, f"{n}.jpg")) as original_image:
+        # 对每个保留的序号，定位图片
+        # 假设图片已经根据原始序号命名，如 '0.jpg', '1.jpg'
+        # 这里使用了原始序号`idx`来查找对应的图片
+        img_path = os.path.join(images_dir, f"{idx}.jpg")
+        if os.path.exists(img_path):
+            with PILImage.open(img_path) as original_image:
 
                 # 获取单元格的宽度，对应于Excel中的列宽
                 cell_width_px = int(ws.column_dimensions['A'].width * pixels_per_unit)
@@ -307,7 +345,9 @@ def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link,cv
 
     for n in range(len(name)):
         N = n + 2
-        ws[f"C{N}"].hyperlink = link[n]
+
+        current_link = link[n]  # 超链接列表也已按 filtered_indices 顺序重新组织
+        ws[f"C{N}"].hyperlink = current_link
     
 
     # 保存Excel文件
@@ -337,7 +377,8 @@ def load_cv_name(user_id):
 def main():
     parser = ArgumentParser(description='bangumi cv character list')
     parser.add_argument('--id', type=int, nargs='+', required=True)
-    args = parser.parse_args()
+    parser.add_argument('--game_only', type=int, default=0, required=False)
+    args = parser.parse_args() 
     # args.id 现在是一个 ID 列表
     for user_id in args.id:
         
@@ -356,8 +397,11 @@ def main():
         update_time_list, kaifa = get_update_time(subject_id, user_id, cv_name)
         print(f'Image download for user_id {user_id}')
         image = image_download(user_id, len(subject_id),cv_name)
-        print(f'Save to {cv_name}.xlsx')
-        data_to_xlsx(user_id, name, subject_name, kaifa, staff, update_time_list, image, link, cv_name)
+        if args.game_only == 0:
+            print(f'Save to {cv_name}.xlsx')
+        else:
+            print(f'Save to {cv_name}_game.xlsx')
+        data_to_xlsx(user_id, name, subject_name, kaifa, staff, update_time_list, image, link, cv_name, args.game_only)
     
     print('All done')
 
