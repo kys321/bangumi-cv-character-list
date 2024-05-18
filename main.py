@@ -1,5 +1,5 @@
 
-#使用样例:python .\main.py --id 34198
+#使用样例:python .\main.py --id 34198 7575
 
 import json
 import time
@@ -23,65 +23,75 @@ LOAD_WAIT_MS = 500
 ACCESS_TOKEN = ""
 IN_GITHUB_WORKFLOW = env_in_github_workflow()
 
+def ensure_user_directory(name):
+    """
+    确保存在以 name 命名的目录。
+    如果目录不存在，则创建它。
+    """
+
+
+    user_dir = os.path.join(name)
+    if not os.path.exists(user_dir):
+        os.makedirs(user_dir)
+        print(f"已创建目录: {user_dir}")
+
 def find_release_date(info_list, key_name):
     # 解决get_update_time查找不到date的问题
     for item in info_list:
-        # 检查字典中的'key'是否匹配需要找的键
+        
         if item['key'] == key_name:
-            # 如果找到键，检查'value'的类型
+
             if isinstance(item['value'], list):
                 # 如果'value'是列表，提取列表中第一个字典的'v'键值
                 return item['value'][0]['v'].split('(')[0]
             elif isinstance(item['value'], str):
                 # 如果'value'是字符串，直接返回字符串值
                 return item['value']
-            break  # 已经找到key，无需继续搜索
-    return "未知日期"  # 如果没有找到key，返回一个默认值
+            break  
+    return "未知日期" 
 
 def get_json_with_bearer_token(url):
     time.sleep(LOAD_WAIT_MS/1000)
     logging.debug(f"load url: {url}")
-    headers = {'Authorization': 'Bearer ' + ACCESS_TOKEN, 'accept': 'application/json', 'User-Agent': 'bangumi-takeout-python/v1'}
+    headers = {'Authorization': 'Bearer ' + ACCESS_TOKEN, 'accept': 'application/json', 'User-Agent': 'bangumi-cv-list/v1'}
     response = requests.get(url, headers=headers)
+    
     return response.json()
 
 
-def load_user_collections(user_id):
+
+def load_user_collections(user_id, name):
+    user_dir = name  # 使用传入的name作为目录名称
     endpoint = f"{API_SERVER}/v0/persons/{user_id}/characters"
     collections = get_json_with_bearer_token(endpoint)
-    logging.info(f"loaded {len(collections)} collections")
-    with open("collections.json","w",encoding="u8") as f:
+    
+    # 构建新的文件路径
+    file_path = os.path.join(user_dir, f"{user_id}_collections.json")
+    with open(file_path, "w", encoding="u8") as f:
         json.dump(collections, f, ensure_ascii=False, indent=4)
+    
     return collections
-
 def load_user():
     # global USERNAME_OR_UID
 
     logging.info("loading user info")
     endpoint = f"{API_SERVER}/v0/persons/{id}"
-    # import pdb;pdb.set_trace()
+
     user_data = get_json_with_bearer_token(endpoint)
     # USERNAME_OR_UID = user_data["username"]
     # print("user_data['username'] =", user_data['username'])
     
     return user_data
 
+    
 def trigger_auth():
     global ACCESS_TOKEN
     if IN_GITHUB_WORKFLOW:
-        logging.info("in Github workflow, reading from secrets")
+
         ACCESS_TOKEN = os.environ['BANGUMI_ACCESS_TOKEN']
-        return
-
+        return  
+    do_auth()
     
-    if Path("./no_gui").exists():
-        logging.info("no gui, skipping oauth")
-    else:
-        do_auth()
-
-    if not Path("./.bgm_token").exists():
-        raise Exception("no access token (auth failed?)")
-
     with open("./.bgm_token", "r", encoding="u8") as f:
         tokens = json.load(f)
         ACCESS_TOKEN = tokens["access_token"]
@@ -108,11 +118,12 @@ def characters_info(collections):
 
 
 
-def get_update_time(subject_id_list,user_id):
+def get_update_time(subject_id_list,user_id,name):
     
     kaifa = []
     update_time = {}
-    filename = f'{user_id}_kaifa_time.json'
+    filename = os.path.join(name, f'{user_id}_kaifa_time.json')
+
     if os.path.exists(filename):
         print(f'从本地{user_id}_kaifa_time.json读取会社与发行信息')
         with open(filename, 'r',encoding = 'utf-8') as file:
@@ -156,31 +167,30 @@ def get_update_time(subject_id_list,user_id):
                 else:
                     time.sleep(1)  # 等待1秒钟后重试
 
-    with open(f'{user_id}_kaifa_time.json', 'w', encoding='utf-8') as file:
+    with open(filename, 'w', encoding='utf-8') as file:
         json.dump({'kaifa': kaifa, 'update_time': update_time}, file, ensure_ascii=False, indent=4)
 
     print(f'存储会社时间信息至{user_id}_kaifa_time.json')
     return update_time, kaifa
 
 
-def get_time_json(update_time_list):
-    with open("updata_time.json","w",encoding="u8") as f:
-        json.dump(update_time_list, f, ensure_ascii=False, indent=4)
+# def get_time_json(update_time_list):
+#     with open("updata_time.json","w",encoding="u8") as f:
+#         json.dump(update_time_list, f, ensure_ascii=False, indent=4)
 
 
 
-def image_download(user_id, chara_number):
-    # 读取JSON文件中的数据。
-    with open('collections.json', 'r', encoding='utf-8') as f:
+def image_download(user_id, chara_number, cv_name):
+    user_dir = str(cv_name)
+    images_dir = os.path.join(user_dir, f"{user_id}_images")
+       # 创建图片存储目录。
+    if not os.path.exists(images_dir):
+        os.makedirs(images_dir)
+
+    with open(os.path.join(user_dir, f"{user_id}_collections.json"), 'r', encoding='utf-8') as f:
         data = json.load(f)
-
     # 初始化image（图片链接）列表。
     image = []
-
-    # 创建图片存储目录。
-    directory = f"{user_id}_images"
-    if not os.path.exists(directory):
-        os.makedirs(directory)
 
     # 初始化进度条。
     pbar = tqdm(total=chara_number, desc="Downloading images")
@@ -190,7 +200,7 @@ def image_download(user_id, chara_number):
         image_url = chara["images"]["small"]  # 获取小图链接。
         image.append(image_url)  # 将图片链接添加到列表中。
 
-        file_path = os.path.join(directory, f"{n}.jpg")  # 设置图片的存储路径。
+        file_path = os.path.join(images_dir, f"{n}.jpg")
 
         if os.path.exists(file_path):
             # 如果图片文件已经存在，跳过下载步骤
@@ -223,7 +233,7 @@ import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.drawing.image import Image
 
-def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link):
+def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link,cv_name):
 
 
     time = {str(k): v for k, v in time.items()}
@@ -237,12 +247,16 @@ def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link):
     df["主配角"] = staff
     df["登场时间"] = time_list
 
-    # 新建一个Excel文件
-    df.to_excel(f"Cv_id_{user_id}.xlsx", index=False)
+    # 构建Excel文件保存的新路径
+    excel_file_path = os.path.join(str(cv_name), f"{cv_name}.xlsx")
+    df.to_excel(excel_file_path, index=False)
+
 
     # 载入Excel文件，并添加图片和超链接
-    wb = load_workbook(f'Cv_id_{user_id}.xlsx')
+   # 载入Excel文件，并添加图片和超链接
+    wb = load_workbook(excel_file_path)
     ws = wb['Sheet1']
+
 
     # 设定列宽度
     ws.column_dimensions["A"].width = 15
@@ -261,10 +275,11 @@ def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link):
         N = n + 2  # Excel中行号从1开始，标题行为第一行，因此数据行从2开始
 
         ws.row_dimensions[N].height = excel_row_height
-
+        user_dir = os.path.join(str(cv_name))
+        images_dir = os.path.join(user_dir, f"{user_id}_images")
         if image[n]:
             # 打开图片
-            with PILImage.open(f"{user_id}_images/{n}.jpg") as original_image:
+            with PILImage.open(os.path.join(images_dir, f"{n}.jpg")) as original_image:
 
                 # 获取单元格的宽度，对应于Excel中的列宽
                 cell_width_px = int(ws.column_dimensions['A'].width * pixels_per_unit)
@@ -294,30 +309,55 @@ def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link):
         N = n + 2
         ws[f"C{N}"].hyperlink = link[n]
     
-    # 保存Excel文件
-    wb.save(f"Cv_id_{user_id}.xlsx")
 
+    # 保存Excel文件
+    wb.save(excel_file_path)
+
+def load_cv_name(user_id):
+
+    url = f"{API_SERVER}/v0/persons/{user_id}"
+    time.sleep(LOAD_WAIT_MS/1000)
+    headers = {'Authorization': 'Bearer ' + ACCESS_TOKEN, 'accept': 'application/json', 'User-Agent': 'bangumi-cv-list/v1'}
+    response = requests.get(url, headers=headers)
+    
+    info = response.json()['infobox']
+    for item in info:
+        if item['key'] == '简体中文名':
+            
+            name = item['value']
+            break  
+        name = user_id#找不到名字了
+    
+    return name
 
 
 
 def main():
     parser = ArgumentParser(description='bangumi cv character list')
-    parser.add_argument('--id', type=int, required=True)
+    parser.add_argument('--id', type=int, nargs='+', required=True)
     args = parser.parse_args()
-    user_id = args.id
-    trigger_auth()  
+    # args.id 现在是一个 ID 列表
+    for user_id in args.id:
+        
+        
 
-    collections = load_user_collections(user_id)  
-    subject_id, subject_name, staff, name, link = characters_info(collections)
+        trigger_auth()
+        cv_name = load_cv_name(user_id)
+        ensure_user_directory(cv_name)
 
-    update_time_list, kaifa = get_update_time(subject_id,user_id) 
-    print('get_time_json') 
-    get_time_json(update_time_list)
-    print('image dl')
-    image = image_download(user_id, len(subject_id))
-    print(f'save to Cv_id_{user_id}.xlsx')
-    data_to_xlsx(user_id, name, subject_name, kaifa, staff, update_time_list, image, link)
-    print('done')
+        
+        #如果令牌过期（有效期为一周）手动删除.bgm_token
+        collections = load_user_collections(user_id, cv_name) 
+        
+        subject_id, subject_name, staff, name, link = characters_info(collections)
+    
+        update_time_list, kaifa = get_update_time(subject_id, user_id, cv_name)
+        print(f'Image download for user_id {user_id}')
+        image = image_download(user_id, len(subject_id),cv_name)
+        print(f'Save to {cv_name}.xlsx')
+        data_to_xlsx(user_id, name, subject_name, kaifa, staff, update_time_list, image, link, cv_name)
+    
+    print('All done')
 
 if __name__ == '__main__':
     main()

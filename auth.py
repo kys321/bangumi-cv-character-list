@@ -3,7 +3,7 @@ import webbrowser
 from urllib.parse import quote_plus, urlencode
 import json
 import requests
-
+import os
 LISTEN_PORT = 42246
 CLIENT_ID = "bgm2195621e24d107557"
 CLIENT_SECRET = "02c1429f8f299328dade092920a75f97"
@@ -48,6 +48,14 @@ def get_access_token():
     print("access token received. written to .bgm_token")
 
 def do_auth():
+    TOKEN_FILE = '.bgm_token'
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, "r", encoding="utf-8") as f:
+            token_data = json.load(f)
+
+            print("Existing token found. Skipping authentication.")
+            return
+        
     print("opening browser to authorize... please click 'allow' on next page")
     webbrowser.open(AUTH_URL)
     print("waiting for code...(check your browser)")
