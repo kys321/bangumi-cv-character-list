@@ -314,7 +314,7 @@ def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link,cv
     wb.save(excel_file_path)
 
 def load_cv_name(user_id):
-
+    name = str(user_id)
     url = f"{API_SERVER}/v0/persons/{user_id}"
     time.sleep(LOAD_WAIT_MS/1000)
     headers = {'Authorization': 'Bearer ' + ACCESS_TOKEN, 'accept': 'application/json', 'User-Agent': 'bangumi-cv-list/v1'}
@@ -326,7 +326,9 @@ def load_cv_name(user_id):
             
             name = item['value']
             break  
-        name = user_id#找不到名字了
+        # #info[0] = {'key': '别名', 'value': [{'k': '第二中文名', 'v': '长井亚沙美'}, {'k': '纯假名', 'v': 'あさみ ほとり'}, {'k': '罗马字', 'v': 'Asami Hotori'}, {'k': '旧名', 'v': '長井亜沙美'}, {'k': '其他名义', 'v': '秋野花＝蒼依ハル＝蒼衣ハル＝浜穂志香'}]} 
+        if len(info[0]['value'][-1]['v'].split("＝")) > 0:
+            name = info[0]['value'][-1]['v'].split("＝")[0]
     
     return name
 
