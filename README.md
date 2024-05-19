@@ -2,16 +2,21 @@
 
 bangumi cv character list (in descending order by time)  
 
-读取bangumi的cv列表存在本地,实现时间倒序 
+读取bangumi的cv列表存在本地,为excel添加图片、超链接，默认按时间倒序 
 
 本项目request相关代码来自于 https://github.com/jerrylususu/bangumi-takeout-py ,相关警告请查阅该项目
 
+
+**如遇网络问题请更换网络或手动删除目录下.bgm_token**
+参考时间单人300个词条约10min
+
+
 使用样例:(test on windows)  
-
-python .\main.py --id 34198  
-
-![效果](assets/example.png)
 
 功能追加：
 实例：python .\main.py --id 34198  7575 --game_only 1
 批量保存获取cv信息，支持仅查看游戏相关的工作（--game_only 1），默认值为0
+
+![效果](assets/example.png)
+
+
