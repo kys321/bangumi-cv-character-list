@@ -272,9 +272,23 @@ def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, link,cv_name, 
     subject_name = [subject_name[i] for i in sorted_indices]
     kaifa = [kaifa[i] for i in sorted_indices]
     staff = [staff[i] for i in sorted_indices]
-    time_list = [time[i] for i in sorted_indices]  # 使用原始的时间字符串列表
+    
+    # 检测 time 字典中键的类型,bangumi
+    if time:
+        # 使用字典的一个键来判断是使用字符串键还是整数键
+        key_type = type(next(iter(time)))
+
+    # 根据键的类型，正确地访问time字典
+    if key_type is str:
+        time_list = [time[str(i)] for i in sorted_indices if str(i) in time]
+    elif key_type is int:
+        time_list = [time[i] for i in sorted_indices if i in time]
+    else:
+        time_list = []  
+
+ 
     link = [link[i] for i in sorted_indices]
-    import pdb;pdb.set_trace()
+    
     df = pd.DataFrame()
     df["肖像"] = ["" for _ in range(len(name))]
     df["角色名"] = name
