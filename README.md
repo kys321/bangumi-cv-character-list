@@ -14,6 +14,8 @@ bangumi cv character list (in descending order by time)
 
 参考时间：单人300个词条约10min
 
+因单个样本测试周期较长，本项目还未经大量测试来提升应对api返回乱七八糟内容的泛化性能，欢迎提交issue帮助改进
+
 使用样例:(test on windows)  
 
 功能追加：
