@@ -257,16 +257,24 @@ def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, link,cv_name, 
     parsed_times = {k: parse_date(v) for k, v in time.items()}
 
     # 根据时间进行排序，未知日期排在最后
-    sorted_indices = sorted(filtered_indices, key=lambda idx: (parsed_times[str(idx)] is not None, parsed_times[str(idx)]), reverse=True)
+    
+    sorted_indices = sorted(
+        filtered_indices, 
+        key=lambda idx: (
+            parsed_times.get(str(idx)) is not None, 
+            parsed_times.get(str(idx))
+        ),
+        reverse=True
+    )
 
     # 然后根据排序后的索引更新各个列表
     name = [name[i] for i in sorted_indices]
     subject_name = [subject_name[i] for i in sorted_indices]
     kaifa = [kaifa[i] for i in sorted_indices]
     staff = [staff[i] for i in sorted_indices]
-    time_list = [time[str(i)] for i in sorted_indices]  # 使用原始的时间字符串列表
+    time_list = [time[i] for i in sorted_indices]  # 使用原始的时间字符串列表
     link = [link[i] for i in sorted_indices]
-    
+    import pdb;pdb.set_trace()
     df = pd.DataFrame()
     df["肖像"] = ["" for _ in range(len(name))]
     df["角色名"] = name
