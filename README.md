@@ -10,6 +10,8 @@ bangumi cv character list (in descending order by time)
 
 **如果令牌过期（默认有效期为一周）手动删除.bgm_token**
 
+
+
 参考时间：单人300个词条约10min
 
 使用样例:(test on windows)  
@@ -19,3 +21,9 @@ bangumi cv character list (in descending order by time)
 批量保存获取cv信息，支持仅查看游戏相关的工作（--game_only 1），默认值为0
 
 ![效果](assets/example1.png)
+
+to do list:
+
+因bangumi api原因大量词条出现开发项信息缺失，该问题暂时未能解决
+
+针对多个id使用多线程并行获取信息（）
