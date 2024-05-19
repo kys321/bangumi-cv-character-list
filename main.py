@@ -225,7 +225,7 @@ def image_download(user_id, chara_number, cv_name):
         pbar.update(1)
 
     pbar.close()
-    return image
+    return 
 
 
 
@@ -246,11 +246,7 @@ def parse_date(date_str):
             continue
     return None
 
-def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link,cv_name, game_only):
-
-
-
-
+def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, link,cv_name, game_only):
 
     # 在添加到DataFrame之前移除不需要的词条
     keys_to_remove = []
@@ -269,7 +265,6 @@ def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link,cv
     kaifa = [kaifa[i] for i in sorted_indices]
     staff = [staff[i] for i in sorted_indices]
     time_list = [time[str(i)] for i in sorted_indices]  # 使用原始的时间字符串列表
-    image = [image[i] for i in sorted_indices]
     link = [link[i] for i in sorted_indices]
     
     df = pd.DataFrame()
@@ -309,8 +304,10 @@ def data_to_xlsx(user_id, name, subject_name, kaifa, staff, time, image, link,cv
     user_dir = os.path.join(str(cv_name))
     images_dir = os.path.join(user_dir, f"{user_id}_images")
 
-    for i, idx in enumerate(filtered_indices):
+    for i, idx in enumerate(sorted_indices):
+        
         N = i + 2  # Excel起始行调整
+        # 
         ws.row_dimensions[N].height = excel_row_height
         # 对每个保留的序号，定位图片
         # 假设图片已经根据原始序号命名，如 '0.jpg', '1.jpg'
@@ -381,14 +378,11 @@ def main():
     args = parser.parse_args() 
     # args.id 现在是一个 ID 列表
     for user_id in args.id:
-        
-        
 
         trigger_auth()
         cv_name = load_cv_name(user_id)
         ensure_user_directory(cv_name)
 
-        
         #如果令牌过期（有效期为一周）手动删除.bgm_token
         collections = load_user_collections(user_id, cv_name) 
         
@@ -396,12 +390,12 @@ def main():
     
         update_time_list, kaifa = get_update_time(subject_id, user_id, cv_name)
         print(f'Image download for user_id {user_id}')
-        image = image_download(user_id, len(subject_id),cv_name)
+        image_download(user_id, len(subject_id),cv_name)
         if args.game_only == 0:
             print(f'Save to {cv_name}.xlsx')
         else:
             print(f'Save to {cv_name}_game.xlsx')
-        data_to_xlsx(user_id, name, subject_name, kaifa, staff, update_time_list, image, link, cv_name, args.game_only)
+        data_to_xlsx(user_id, name, subject_name, kaifa, staff, update_time_list, link, cv_name, args.game_only)
     
     print('All done')
 
