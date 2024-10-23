@@ -22,7 +22,7 @@ bangumi cv character list (in descending order by time)
 实例：python .\main.py --id 34198  7575 --game_only 1
 批量保存获取cv信息，支持仅查看游戏相关的工作（--game_only 1），默认值为0
 
-![效果](assets/example1.png)
+
 
 to do list:
 
